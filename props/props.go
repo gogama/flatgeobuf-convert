@@ -3,7 +3,9 @@ package props
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -60,6 +62,7 @@ func NewProps(schema *Schema) *Props {
 		textPanic("nil schema")
 	}
 	return &Props{
+		flatSchema: schema,
 		fastSchema: schema,
 		mutable:    true,
 	}
@@ -68,23 +71,28 @@ func NewProps(schema *Schema) *Props {
 func (p *Props) columnType(col int) flat.ColumnType {
 	if p.fastSchema != nil {
 		return p.fastSchema.Type(col)
+	} else if p.flatSchema != nil {
+		var columnType flat.ColumnType
+		_ = interop.FlatBufferSafe(func() error {
+			var obj flat.Column
+			if p.flatSchema.Columns(&obj, col) {
+				columnType = obj.Type()
+			}
+			return nil
+		})
+		return columnType
+	} else {
+		return flat.ColumnType(0)
 	}
-	var columnType flat.ColumnType
-	_ = interop.FlatBufferSafe(func() error {
-		var obj flat.Column
-		if p.flatSchema.Columns(&obj, col) {
-			columnType = obj.Type()
-		}
-		return nil
-	})
-	return columnType
 }
 
 func (p *Props) numColumns() int {
 	if p.fastSchema != nil {
 		return p.fastSchema.ColumnsLength()
-	} else {
+	} else if p.flatSchema != nil {
 		return p.flatSchema.ColumnsLength()
+	} else {
+		return 0
 	}
 }
 
@@ -315,8 +323,9 @@ func (p *Props) GetValue(index int) (any, error) {
 		return p.GetBinary(index)
 	case flat.ColumnTypeDateTime:
 		v, err := p.GetDateTime(index)
-		if errors.As(err, &time.ParseError{}) {
-			v, err = p.GetDateTimeString(index)
+		var x *time.ParseError
+		if errors.As(err, &x) {
+			return p.GetDateTimeString(index)
 		}
 		return v, err
 	default:
@@ -1077,5 +1086,32 @@ func (p *Props) SetDateTimeStringName(name string, value string) error {
 }
 
 func (p *Props) String() string {
-	// TODO: Implement string-ification.
+	var bldr strings.Builder
+	_, _ = bldr.WriteString(packageName)
+	_, _ = bldr.WriteString("Props{")
+	n := p.numColumns()
+	printed := false
+	for i := 0; i < n; i++ {
+		value, err := p.GetValue(i)
+		if err != nil {
+			continue
+		}
+		var name string
+		if p.fastSchema != nil {
+			name = p.fastSchema.Column(i).Name
+		} else {
+			var obj flat.Column
+			if p.flatSchema.Columns(&obj, i) {
+				b := obj.Name()
+				name = unsafe.String(&b[0], len(b))
+			}
+		}
+		if printed {
+			_ = bldr.WriteByte(',')
+		}
+		_, _ = fmt.Fprintf(&bldr, "%s:%v", name, value)
+		printed = true
+	}
+	_ = bldr.WriteByte('}')
+	return bldr.String()
 }
