@@ -2,7 +2,7 @@ package props
 
 import (
 	"bytes"
-	"encoding/json"
+	"errors"
 	"math"
 	"time"
 	"unsafe"
@@ -314,7 +314,11 @@ func (p *Props) GetValue(index int) (any, error) {
 	case flat.ColumnTypeBinary:
 		return p.GetBinary(index)
 	case flat.ColumnTypeDateTime:
-		return p.GetDateTime(index)
+		v, err := p.GetDateTime(index)
+		if errors.As(err, &time.ParseError{}) {
+			v, err = p.GetDateTimeString(index)
+		}
+		return v, err
 	default:
 		return nil, errInvalidColumnType(columnType)
 	}
@@ -354,12 +358,10 @@ func (p *Props) SetValue(index int, value any) error {
 		return p.SetDouble(index, v)
 	case string:
 		return p.SetString(index, v)
-	case json.RawMessage: // FIXME: Is there anything that works here? Or just delete this probably...
-		return p.SetJSON(index, v)
 	case []byte:
 		return p.SetBinary(index, v)
 	case time.Time:
-		// TODO: time conversion...
+		return p.SetDateTime(index, v)
 	default:
 		return fmtErr("value %v of type %T does not map to a FlatGeobuf column type", value, v)
 	}
@@ -1019,8 +1021,8 @@ func (p *Props) GetDateTime(index int) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	// TODO: Create temporary unsafe string pointing to buffer.
-	// TODO: Parse the date/time into time.Time
+	s := unsafe.String(&b[0], len(b)) // Temporary unsafe string pointing into buffer.
+	return time.Parse(time.RFC3339, s)
 }
 
 func (p *Props) GetDateTimeName(name string) (time.Time, error) {
@@ -1032,8 +1034,10 @@ func (p *Props) GetDateTimeName(name string) (time.Time, error) {
 }
 
 func (p *Props) SetDateTime(index int, value time.Time) error {
-	// TODO: Render value to ISO-8601 compliant string and save it.
-	return p.setBinary(index, flat.ColumnTypeDateTime, []byte(value.Format(time.RFC3339)))
+	s := value.Format(time.RFC3339) // TODO: Use our own format string????
+	ptr := unsafe.StringData(s)
+	b := unsafe.Slice(ptr, len(s))
+	return p.setBinary(index, flat.ColumnTypeDateTime, b)
 }
 
 func (p *Props) SetDateTimeName(name string, value time.Time) error {
@@ -1042,6 +1046,34 @@ func (p *Props) SetDateTimeName(name string, value time.Time) error {
 		return err
 	}
 	return p.SetDateTime(col, value)
+}
+
+func (p *Props) GetDateTimeString(index int) (string, error) {
+	b, err := p.getBinary(index, flat.ColumnTypeDateTime)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func (p *Props) GetDateTimeStringName(name string) (string, error) {
+	col, err := p.name2Col(name)
+	if err != nil {
+		return "", err
+	}
+	return p.GetDateTimeString(col)
+}
+
+func (p *Props) SetDateTimeString(index int, value string) error {
+	return p.setBinary(index, flat.ColumnTypeDateTime, unsafe.Slice(unsafe.StringData(value), len(value)))
+}
+
+func (p *Props) SetDateTimeStringName(name string, value string) error {
+	col, err := p.name2Col(name)
+	if err != nil {
+		return err
+	}
+	return p.SetDateTimeString(col, value)
 }
 
 func (p *Props) String() string {
