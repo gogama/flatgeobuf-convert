@@ -1,4 +1,4 @@
-package schema
+package props
 
 import (
 	"github.com/gogama/flatgeobuf-convert/interop"
@@ -17,7 +17,7 @@ type Schema struct {
 	name2Index map[string]int
 }
 
-func FromFlat(obj flatgeobuf.Schema) (schema *Schema, err error) {
+func SchemaFromFlat(obj flatgeobuf.Schema) (schema *Schema, err error) {
 	var cols []Column
 	err = interop.FlatBufferSafe(func() error {
 		n := obj.ColumnsLength()
@@ -42,7 +42,7 @@ func FromFlat(obj flatgeobuf.Schema) (schema *Schema, err error) {
 	}, nil
 }
 
-func New(cols []Column) *Schema {
+func NewSchema(cols []Column) *Schema {
 	return &Schema{
 		cols: cols,
 	}

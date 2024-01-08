@@ -1,4 +1,4 @@
-package crs
+package header
 
 import (
 	"github.com/gogama/flatgeobuf-convert/interop"
@@ -15,7 +15,7 @@ type CRS struct {
 	CodeString  string
 }
 
-func FromFlat(crs *flat.Crs) (*CRS, error) {
+func CRSFromFlat(crs *flat.Crs) (*CRS, error) {
 	var result CRS
 	err := interop.FlatBufferSafe(func() error {
 		result.Org = string(crs.Org())

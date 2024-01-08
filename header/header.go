@@ -1,7 +1,6 @@
 package header
 
 import (
-	"github.com/gogama/flatgeobuf-convert/crs"
 	"github.com/gogama/flatgeobuf-convert/props"
 	"github.com/gogama/flatgeobuf/flatgeobuf"
 	"github.com/gogama/flatgeobuf/flatgeobuf/flat"
@@ -24,13 +23,13 @@ type Header struct {
 	Schema        *props.Schema
 	FeaturesCount uint64
 	IndexNodeSize *uint16
-	CRS           *crs.CRS
+	CRS           *CRS
 	Title         *string
 	Description   *string
 	Metadata      *string
 }
 
-func FromFlat(hdr flat.Header) *Header {
+func HeaderFromFlat(hdr flat.Header) *Header {
 	return nil // TODO
 }
 

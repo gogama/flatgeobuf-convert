@@ -8,7 +8,6 @@ import (
 	"unsafe"
 
 	"github.com/gogama/flatgeobuf-convert/interop"
-	"github.com/gogama/flatgeobuf-convert/schema"
 	"github.com/gogama/flatgeobuf/flatgeobuf"
 	"github.com/gogama/flatgeobuf/flatgeobuf/flat"
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -27,7 +26,7 @@ type Props struct {
 	flatSchema flatgeobuf.Schema
 	// fastSchema is the schema used if the properties were created
 	// using the schema type from this package.
-	fastSchema *schema.Schema
+	fastSchema *Schema
 	// data contains the raw properties in FlatGeobuf property format.
 	// It may have the zero value if the property set is empty.
 	data bytes.Buffer
@@ -45,7 +44,7 @@ type Props struct {
 	mutable bool
 }
 
-func FromFlat(schema flatgeobuf.Schema, data []byte) *Props {
+func PropsFromFlat(schema flatgeobuf.Schema, data []byte) *Props {
 	if schema == nil {
 		textPanic("nil schema")
 	}
@@ -56,7 +55,7 @@ func FromFlat(schema flatgeobuf.Schema, data []byte) *Props {
 	}
 }
 
-func New(schema *schema.Schema) *Props {
+func NewProps(schema *Schema) *Props {
 	if schema == nil {
 		textPanic("nil schema")
 	}
@@ -251,7 +250,7 @@ func (p *Props) check(col int, expectedType flat.ColumnType) error {
 	return nil
 }
 
-func (p *Props) Schema() *schema.Schema {
+func (p *Props) Schema() *Schema {
 	// TODO: Do we want FlatSchema and Schema? The former would always have a return value.
 	return nil
 }
